@@ -6,6 +6,9 @@ const allProducts = require('../data/all-products.json');
 
 productModel.create = jest.fn();
 productModel.find = jest.fn();
+productModel.findById = jest.fn();
+
+const productId = "60b73eb616cf7528345cf91d";
 
 let req, res, next;
 beforeEach(() => {
@@ -42,6 +45,13 @@ describe("Product Controller Create", () => {
         await productController.createProduct(req, res, next);
         expect(next).toBeCalledWith(errorMessage);
     })
+    it("should handle errors", async () => {
+        const errorMessage = { message: "error" };
+        const rejectedPromise = Promise.reject(errorMessage);
+        productModel.findById.mockReturnValue(rejectedPromise);
+        await productController.getProductById(req, res, next);
+        expect(next).toHaveBeenCalledWith(errorMessage);
+    })
 
 })
 
@@ -71,3 +81,27 @@ describe("Product Controller Get", () => {
         expect(next).toHaveBeenCalledWith(errorMessage)
     })
 })
+
+describe('product Controller getById', () => {
+    it("should have a getProductById", () => {
+        expect(typeof productController.getProductById).toBe("function")
+    })
+    it("should call Product.findById", async () => {
+        req.params.productId = productId;
+        await productController.getProductById(req, res, next);
+        expect(productModel.findById).toBeCalledWith(productId);
+    })
+    it("should return json body and response code 200", async () => {
+        productModel.findById.mockReturnValue(newProduct);
+        await productController.getProductById(req, res, next);
+        expect(res.statusCode).toBe(200);
+        expect(res._getJSONData()).toStrictEqual(newProduct);
+        expect(res._isEndCalled()).toBeTruthy();
+    })
+    it("should return 404 when item doesnt exist", async () => {
+        productModel.findById.mockReturnValue(null);
+        await productController.getProductById(req, res, next);
+        expect(res.statusCode).toBe(404);
+        expect(res._isEndCalled()).toBeTruthy();
+    })
+});
